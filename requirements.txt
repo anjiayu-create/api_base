@@ -1,0 +1,5 @@
+# 无依赖冲突，兼容Python3.13
+Flask==2.3.3               # 核心Web框架
+PyJWT==2.9.0               # JWT鉴权
+Werkzeug==2.3.7            # 与Flask 2.3.3配套（无冲突）
+python-dotenv==1.0.1       # 配置管理

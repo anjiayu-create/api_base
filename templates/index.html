@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>博客测试系统（接口串联）</title>
+    <style>
+        /* 极简样式，无外部依赖 */
+        .container { width: 80%; margin: 20px auto; }
+        .form-group { margin: 15px 0; }
+        label { display: inline-block; width: 100px; }
+        input, textarea { width: 300px; padding: 5px; }
+        button { padding: 6px 15px; margin-right: 10px; cursor: pointer; }
+        #msg { color: red; margin: 10px 0; }
+        .success { color: green !important; }
+        .article-item { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .article-id { font-weight: bold; color: #0066cc; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>博客测试系统（接口串联可抓包）</h1>
+
+        <!-- 登录区域 -->
+        <div id="login-area">
+            <h2>1. 登录</h2>
+            <div class="form-group">
+                <label>用户名：</label>
+                <input type="text" id="username" placeholder="admin/test">
+            </div>
+            <div class="form-group">
+                <label>密码：</label>
+                <input type="password" id="password" placeholder="Admin@123456/Test@123456">
+            </div>
+            <button onclick="login()">登录</button>
+            <div id="msg"></div>
+        </div>
+
+        <!-- 文章操作区域（登录后显示） -->
+        <div id="article-area" style="display: none;">
+            <!-- 2. 发布文章（返回article_id） -->
+            <h2>2. 发布文章（返回article_id）</h2>
+            <div class="form-group">
+                <label>标题：</label>
+                <input type="text" id="art-title" placeholder="至少2个字符">
+            </div>
+            <div class="form-group">
+                <label>内容：</label>
+                <textarea id="art-content" rows="5" placeholder="至少5个字符"></textarea>
+            </div>
+            <button onclick="createArticle()">发布文章</button>
+            <div id="create-result" class="form-group"></div>
+
+            <!-- 3. 查询文章列表（显示所有article_id） -->
+            <h2>3. 查询我的文章（含article_id）</h2>
+            <button onclick="listArticles()">查询文章</button>
+            <div id="article-list" class="form-group"></div>
+
+            <!-- 4. 修改文章（依赖article_id） -->
+            <h2>4. 修改文章（需输入article_id）</h2>
+            <div class="form-group">
+                <label>article_id：</label>
+                <input type="number" id="update-id" placeholder="从查询结果复制ID">
+            </div>
+            <div class="form-group">
+                <label>新标题：</label>
+                <input type="text" id="update-title" placeholder="留空则不修改">
+            </div>
+            <div class="form-group">
+                <label>新内容：</label>
+                <textarea id="update-content" rows="3" placeholder="留空则不修改"></textarea>
+            </div>
+            <button onclick="updateArticle()">修改文章</button>
+            <div id="update-result" class="form-group"></div>
+
+            <!-- 5. 删除文章（依赖article_id） -->
+            <h2>5. 删除文章（需输入article_id）</h2>
+            <div class="form-group">
+                <label>article_id：</label>
+                <input type="number" id="delete-id" placeholder="从查询结果复制ID">
+            </div>
+            <button onclick="deleteArticle()">删除文章</button>
+            <div id="delete-result" class="form-group"></div>
+        </div>
+    </div>
+
+    <script>
+        let token = "";  // 登录Token
+        let lastArticleId = "";  // 记录最新发布的article_id（接口串联）
+
+        // 1. 登录（可抓包：/api/login）
+        function login() {
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            fetch("/api/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 200) {
+                    token = data.data.token;
+                    document.getElementById("msg").className = "success";
+                    document.getElementById("msg").innerText = "登录成功！可抓包查看/api/login请求";
+                    document.getElementById("article-area").style.display = "block";
+                } else {
+                    document.getElementById("msg").className = "";
+                    document.getElementById("msg").innerText = data.msg;
+                }
+            })
+            .catch(err => {
+                document.getElementById("msg").innerText = "登录失败：" + err;
+            });
+        }
+
+        // 2. 发布文章（可抓包：/api/article/create，返回article_id）
+        function createArticle() {
+            const title = document.getElementById("art-title").value;
+            const content = document.getElementById("art-content").value;
+
+            fetch("/api/article/create", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ title, content })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 200) {
+                    lastArticleId = data.data.article_id;  // 记录article_id（接口串联）
+                    document.getElementById("create-result").className = "success";
+                    document.getElementById("create-result").innerText =
+                        `发布成功！article_id=${lastArticleId}（可抓包查看/api/article/create），已自动填充到修改/删除框`;
+                    // 自动填充到修改/删除框（接口串联可视化）
+                    document.getElementById("update-id").value = lastArticleId;
+                    document.getElementById("delete-id").value = lastArticleId;
+                    // 清空表单
+                    document.getElementById("art-title").value = "";
+                    document.getElementById("art-content").value = "";
+                } else {
+                    document.getElementById("create-result").className = "";
+                    document.getElementById("create-result").innerText = data.msg;
+                }
+            });
+        }
+
+        // 3. 查询文章列表（可抓包：/api/article/list，显示所有article_id）
+        function listArticles() {
+            fetch("/api/article/list", {
+                method: "GET",
+                headers: { "Authorization": "Bearer " + token }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 200) {
+                    let html = `<div>共${data.data.count}篇文章（可抓包查看/api/article/list）：</div>`;
+                    data.data.articles.forEach(art => {
+                        html += `<div class="article-item">
+                            article_id：<span class="article-id">${art.id}</span><br>
+                            标题：${art.title}<br>
+                            创建时间：${art.create_time}
+                        </div>`;
+                    });
+                    document.getElementById("article-list").innerHTML = html;
+                } else {
+                    document.getElementById("article-list").innerText = data.msg;
+                }
+            });
+        }
+
+        // 4. 修改文章（可抓包：/api/article/update，依赖article_id）
+        function updateArticle() {
+            const article_id = document.getElementById("update-id").value;
+            const title = document.getElementById("update-title").value;
+            const content = document.getElementById("update-content").value;
+
+            fetch("/api/article/update", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ article_id, title, content })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 200) {
+                    document.getElementById("update-result").className = "success";
+                    document.getElementById("update-result").innerText =
+                        `修改成功！article_id=${data.data.article_id}（可抓包查看/api/article/update）`;
+                    // 刷新文章列表
+                    listArticles();
+                } else {
+                    document.getElementById("update-result").className = "";
+                    document.getElementById("update-result").innerText = data.msg;
+                }
+            });
+        }
+
+        // 5. 删除文章（可抓包：/api/article/delete，依赖article_id）
+        function deleteArticle() {
+            const article_id = document.getElementById("delete-id").value;
+
+            fetch("/api/article/delete", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ article_id })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 200) {
+                    document.getElementById("delete-result").className = "success";
+                    document.getElementById("delete-result").innerText =
+                        `删除成功！article_id=${data.data.article_id}（可抓包查看/api/article/delete）`;
+                    // 刷新文章列表
+                    listArticles();
+                    // 清空输入框
+                    document.getElementById("delete-id").value = "";
+                    document.getElementById("update-id").value = "";
+                } else {
+                    document.getElementById("delete-result").className = "";
+                    document.getElementById("delete-result").innerText = data.msg;
+                }
+            });
+        }
+    </script>
+</body>
+</html>

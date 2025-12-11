@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "salt": "5199b63508f5894d153e3049b1239a2d",
+    "hash": "8ff8b8db0f87a8aed8ebed66ced7624d3391619e3ff5176faefb4a7f32a03c4116ec7345b47df1bb6b13cb842a026c1bbee190f05a455dfc130728a6361fe8aa"
+  },
+  {
+    "id": 2,
+    "username": "test",
+    "salt": "d46fa1dff7daee24841de6e01b92801e",
+    "hash": "4b4d6d6d78436c41fd1cefbabf7b7befa0fc7086220077cde57d3444d89f0a5a66e42112bf5b15fc268769d1c787ac287c33cdba35a72fb620fd5272a37f5e53"
+  }
+]
