@@ -1,14 +1,13 @@
 import jwt
 import hashlib
-from datetime import datetime
-from flask import request, session, jsonify, Response  # 新增：导入Response类型
+from datetime import datetime, timedelta
+from flask import request, session, jsonify, Response
 from config import JWT_SECRET_KEY, JWT_EXPIRES
 
 # 修复：原生pbkdf2_hex实现（匹配Python3.13标准库）
 def pbkdf2_hex(data, salt, iterations=10000, dklen=64, digest=None):
     if digest is None:
         digest = hashlib.sha256
-    # 正确参数：hash_name, password, salt, iterations, dklen
     pbkdf2 = hashlib.pbkdf2_hmac(
         hash_name=digest().name,
         password=data,
@@ -34,9 +33,9 @@ def verify_password(username, password):
             return user if pwd_hash == user["hash"] else None
     return None
 
-# 生成Token
+# 生成Token（仅用于身份认证，有效期2小时）
 def generate_token(user_id, username):
-    expire = datetime.utcnow() + JWT_EXPIRES
+    expire = datetime.utcnow() + timedelta(hours=2)  # 明确2小时有效期
     token = jwt.encode(
         {"sub": user_id, "username": username, "exp": expire},
         JWT_SECRET_KEY,
@@ -44,34 +43,40 @@ def generate_token(user_id, username):
     )
     return token.decode("utf-8") if isinstance(token, bytes) else token
 
-# 验证Token+Session
+# 核心鉴权：严格分离Token（身份）+ Session（会话）双重校验
 def auth_validate():
-    # 获取Token
-    header_token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    cookie_token = request.cookies.get("token")
-    if not header_token or not cookie_token or header_token != cookie_token:
-        return jsonify({"code": 401, "msg": "未登录或Token失效"}), 401
+    # 1. 校验Token（仅从Authorization请求头获取，身份认证）
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"code": 401, "msg": "未提供有效身份认证Token"}), 401
+    token = auth_header.replace("Bearer ", "")
+    if not token:
+        return jsonify({"code": 401, "msg": "身份认证Token不能为空"}), 401
 
-    # 验证Token
+    # 验证Token有效性
     try:
-        payload = jwt.decode(header_token, JWT_SECRET_KEY, algorithms=["HS256"])
-    except Exception as e:
-        return jsonify({"code": 401, "msg": f"Token失效：{str(e)}"}), 401
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        return jsonify({"code": 401, "msg": "身份认证Token已过期"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"code": 401, "msg": "身份认证Token无效/被篡改"}), 401
 
-    # 验证Session
-    if session.get("username") != payload["username"]:
-        return jsonify({"code": 401, "msg": "登录态失效，请重新登录"}), 401
+    # 2. 校验Session（仅从服务端Session校验，会话保持）
+    if not session.get("username"):
+        return jsonify({"code": 401, "msg": "登录会话已失效，请重新登录"}), 401
+    # 关键：Token中的用户与Session中的用户必须匹配
+    if payload["username"] != session["username"]:
+        return jsonify({"code": 401, "msg": "身份认证与登录会话不匹配"}), 401
 
-    return payload  # 正确返回payload（dict），错误时返回 (Response, 状态码)
+    # 3. 校验通过，返回用户信息
+    return payload
 
-# 修复：login_required装饰器（核心解决TypeError）
+# 登录装饰器（无改动，仅依赖强化后的auth_validate）
 def login_required(f):
     def wrapper(*args, **kwargs):
         validate_result = auth_validate()
-        # 正确判断：错误时返回的是 (Response对象, 状态码) 元组
         if isinstance(validate_result, tuple):
             return validate_result
-        # 正常时将payload传入视图函数
         kwargs["user_info"] = validate_result
         return f(*args, **kwargs)
     wrapper.__name__ = f.__name__

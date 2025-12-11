@@ -2,9 +2,8 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>博客测试系统（接口串联）</title>
+    <title>博客测试系统（Token&Session严格分离）</title>
     <style>
-        /* 极简样式，无外部依赖 */
         .container { width: 80%; margin: 20px auto; }
         .form-group { margin: 15px 0; }
         label { display: inline-block; width: 100px; }
@@ -18,7 +17,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>博客测试系统（接口串联可抓包）</h1>
+        <h1>博客测试系统（Token&Session严格分离）</h1>
 
         <!-- 登录区域 -->
         <div id="login-area">
@@ -32,12 +31,13 @@
                 <input type="password" id="password" placeholder="Admin@123456/Test@123456">
             </div>
             <button onclick="login()">登录</button>
+            <button onclick="logout()" disabled id="logout-btn">登出</button>
             <div id="msg"></div>
         </div>
 
         <!-- 文章操作区域（登录后显示） -->
         <div id="article-area" style="display: none;">
-            <!-- 2. 发布文章（返回article_id） -->
+            <!-- 2. 发布文章 -->
             <h2>2. 发布文章（返回article_id）</h2>
             <div class="form-group">
                 <label>标题：</label>
@@ -50,12 +50,12 @@
             <button onclick="createArticle()">发布文章</button>
             <div id="create-result" class="form-group"></div>
 
-            <!-- 3. 查询文章列表（显示所有article_id） -->
+            <!-- 3. 查询文章列表 -->
             <h2>3. 查询我的文章（含article_id）</h2>
             <button onclick="listArticles()">查询文章</button>
             <div id="article-list" class="form-group"></div>
 
-            <!-- 4. 修改文章（依赖article_id） -->
+            <!-- 4. 修改文章 -->
             <h2>4. 修改文章（需输入article_id）</h2>
             <div class="form-group">
                 <label>article_id：</label>
@@ -72,7 +72,7 @@
             <button onclick="updateArticle()">修改文章</button>
             <div id="update-result" class="form-group"></div>
 
-            <!-- 5. 删除文章（依赖article_id） -->
+            <!-- 5. 删除文章 -->
             <h2>5. 删除文章（需输入article_id）</h2>
             <div class="form-group">
                 <label>article_id：</label>
@@ -84,10 +84,10 @@
     </div>
 
     <script>
-        let token = "";  // 登录Token
-        let lastArticleId = "";  // 记录最新发布的article_id（接口串联）
+        let token = "";  // Token仅存内存，用于请求头传递（身份认证）
+        let lastArticleId = "";  // 记录最新发布的article_id
 
-        // 1. 登录（可抓包：/api/login）
+        // 1. 登录：仅获取Token（内存），Session ID由浏览器自动存Cookie
         function login() {
             const username = document.getElementById("username").value;
             const password = document.getElementById("password").value;
@@ -95,15 +95,17 @@
             fetch("/api/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "include",  // 仅用于携带Session Cookie（会话保持）
                 body: JSON.stringify({ username, password })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.code === 200) {
-                    token = data.data.token;
+                    token = data.data.token;  // Token存入内存，不碰Cookie
                     document.getElementById("msg").className = "success";
-                    document.getElementById("msg").innerText = "登录成功！可抓包查看/api/login请求";
+                    document.getElementById("msg").innerText = "登录成功！Token仅存内存，Cookie仅含Session ID";
                     document.getElementById("article-area").style.display = "block";
+                    document.getElementById("logout-btn").disabled = false;
                 } else {
                     document.getElementById("msg").className = "";
                     document.getElementById("msg").innerText = data.msg;
@@ -114,7 +116,39 @@
             });
         }
 
-        // 2. 发布文章（可抓包：/api/article/create，返回article_id）
+        // 新增：登出（主动失效Session，Token由前端自行清空）
+        function logout() {
+            if (!token) {
+                document.getElementById("msg").innerText = "未登录，无需登出";
+                return;
+            }
+            fetch("/api/logout", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token  // Token用于身份认证
+                },
+                credentials: "include"  // 携带Session Cookie
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 200) {
+                    token = "";  // 前端清空Token
+                    document.getElementById("msg").className = "success";
+                    document.getElementById("msg").innerText = "登出成功！Session已失效，Token已清空";
+                    document.getElementById("article-area").style.display = "none";
+                    document.getElementById("logout-btn").disabled = true;
+                    // 清空所有输入框
+                    document.getElementById("update-id").value = "";
+                    document.getElementById("delete-id").value = "";
+                } else {
+                    document.getElementById("msg").className = "";
+                    document.getElementById("msg").innerText = data.msg;
+                }
+            });
+        }
+
+        // 2. 发布文章：Token（请求头）+ Session（Cookie）双重传递
         function createArticle() {
             const title = document.getElementById("art-title").value;
             const content = document.getElementById("art-content").value;
@@ -123,21 +157,20 @@
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token
+                    "Authorization": "Bearer " + token  // Token仅此处传递
                 },
+                credentials: "include",  // Session Cookie自动携带
                 body: JSON.stringify({ title, content })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.code === 200) {
-                    lastArticleId = data.data.article_id;  // 记录article_id（接口串联）
+                    lastArticleId = data.data.article_id;
                     document.getElementById("create-result").className = "success";
                     document.getElementById("create-result").innerText =
-                        `发布成功！article_id=${lastArticleId}（可抓包查看/api/article/create），已自动填充到修改/删除框`;
-                    // 自动填充到修改/删除框（接口串联可视化）
+                        `发布成功！article_id=${lastArticleId}，已填充到修改/删除框`;
                     document.getElementById("update-id").value = lastArticleId;
                     document.getElementById("delete-id").value = lastArticleId;
-                    // 清空表单
                     document.getElementById("art-title").value = "";
                     document.getElementById("art-content").value = "";
                 } else {
@@ -147,16 +180,17 @@
             });
         }
 
-        // 3. 查询文章列表（可抓包：/api/article/list，显示所有article_id）
+        // 3. 查询文章列表：同上
         function listArticles() {
             fetch("/api/article/list", {
                 method: "GET",
-                headers: { "Authorization": "Bearer " + token }
+                headers: { "Authorization": "Bearer " + token },
+                credentials: "include"
             })
             .then(res => res.json())
             .then(data => {
                 if (data.code === 200) {
-                    let html = `<div>共${data.data.count}篇文章（可抓包查看/api/article/list）：</div>`;
+                    let html = `<div>共${data.data.count}篇文章：</div>`;
                     data.data.articles.forEach(art => {
                         html += `<div class="article-item">
                             article_id：<span class="article-id">${art.id}</span><br>
@@ -171,7 +205,7 @@
             });
         }
 
-        // 4. 修改文章（可抓包：/api/article/update，依赖article_id）
+        // 4. 修改文章：同上
         function updateArticle() {
             const article_id = document.getElementById("update-id").value;
             const title = document.getElementById("update-title").value;
@@ -183,6 +217,7 @@
                     "Content-Type": "application/json",
                     "Authorization": "Bearer " + token
                 },
+                credentials: "include",
                 body: JSON.stringify({ article_id, title, content })
             })
             .then(res => res.json())
@@ -190,8 +225,7 @@
                 if (data.code === 200) {
                     document.getElementById("update-result").className = "success";
                     document.getElementById("update-result").innerText =
-                        `修改成功！article_id=${data.data.article_id}（可抓包查看/api/article/update）`;
-                    // 刷新文章列表
+                        `修改成功！article_id=${data.data.article_id}`;
                     listArticles();
                 } else {
                     document.getElementById("update-result").className = "";
@@ -200,7 +234,7 @@
             });
         }
 
-        // 5. 删除文章（可抓包：/api/article/delete，依赖article_id）
+        // 5. 删除文章：同上
         function deleteArticle() {
             const article_id = document.getElementById("delete-id").value;
 
@@ -210,6 +244,7 @@
                     "Content-Type": "application/json",
                     "Authorization": "Bearer " + token
                 },
+                credentials: "include",
                 body: JSON.stringify({ article_id })
             })
             .then(res => res.json())
@@ -217,12 +252,9 @@
                 if (data.code === 200) {
                     document.getElementById("delete-result").className = "success";
                     document.getElementById("delete-result").innerText =
-                        `删除成功！article_id=${data.data.article_id}（可抓包查看/api/article/delete）`;
-                    // 刷新文章列表
+                        `删除成功！article_id=${data.data.article_id}`;
                     listArticles();
-                    // 清空输入框
                     document.getElementById("delete-id").value = "";
-                    document.getElementById("update-id").value = "";
                 } else {
                     document.getElementById("delete-result").className = "";
                     document.getElementById("delete-result").innerText = data.msg;

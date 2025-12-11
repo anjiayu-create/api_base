@@ -4,7 +4,9 @@ from config import SECRET_KEY
 # 初始化Flask
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+# Session Cookie 严格配置：仅存Session ID，HttpOnly防XSS，有效期2小时
 app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["PERMANENT_SESSION_LIFETIME"] = 7200  # Session有效期7200秒（2小时）
 
 # 延迟导入（解决循环依赖）
 from auth import verify_password, generate_token, login_required
@@ -18,7 +20,7 @@ def index():
 
 
 # -------------------------- API接口 --------------------------
-# 登录接口
+# 登录接口：严格分离Token和Session
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.get_json() or request.form.to_dict()
@@ -32,10 +34,16 @@ def login():
     if not user:
         return jsonify({"code": 401, "msg": "用户名/密码错误"}), 401
 
+    # 1. 设置Session（Flask自动生成Session ID，仅存于Cookie，HttpOnly保护）
+    session.permanent = True  # 启用有效期配置
     session["username"] = user["username"]
+    session["user_id"] = user["id"]  # 存储用户ID用于会话校验
+
+    # 2. 生成JWT Token（仅用于身份认证，返回给前端，不存入Cookie）
     token = generate_token(user["id"], user["username"])
 
-    resp = jsonify({
+    # 响应：仅返回Token，Cookie由Flask自动设置（仅含Session ID）
+    return jsonify({
         "code": 200,
         "msg": "登录成功",
         "data": {
@@ -44,11 +52,22 @@ def login():
             "username": user["username"]
         }
     })
-    resp.set_cookie("token", token, httponly=True, max_age=7200)
-    return resp
 
 
-# 发布文章接口
+# 新增登出接口：主动失效Session（Token无法主动失效，靠过期）
+@app.route("/api/logout", methods=["POST"])
+@login_required
+def logout(user_info):
+    # 清空服务端Session数据，Session ID自动失效
+    session.clear()
+    return jsonify({
+        "code": 200,
+        "msg": "登出成功",
+        "data": {}
+    })
+
+
+# 发布文章接口（无改动，仅鉴权逻辑在auth.py中强化）
 @app.route("/api/article/create", methods=["POST"])
 @login_required
 def create_article_api(user_info):
@@ -74,7 +93,7 @@ def create_article_api(user_info):
     })
 
 
-# 查询文章列表
+# 查询文章列表（无改动）
 @app.route("/api/article/list", methods=["GET"])
 @login_required
 def list_article_api(user_info):
@@ -89,7 +108,7 @@ def list_article_api(user_info):
     })
 
 
-# 查询单篇文章
+# 查询单篇文章（无改动）
 @app.route("/api/article/<article_id>", methods=["GET"])
 @login_required
 def get_article_api(article_id, user_info):
@@ -104,7 +123,7 @@ def get_article_api(article_id, user_info):
     })
 
 
-# 修改文章
+# 修改文章（无改动）
 @app.route("/api/article/update", methods=["POST"])
 @login_required
 def update_article_api(user_info):
@@ -133,7 +152,7 @@ def update_article_api(user_info):
     })
 
 
-# 删除文章
+# 删除文章（无改动）
 @app.route("/api/article/delete", methods=["POST"])
 @login_required
 def delete_article_api(user_info):
@@ -161,5 +180,5 @@ if __name__ == "__main__":
 
     init_users()
     # 启动服务
-    print("服务启动成功：http://127.0.0.1:5008")
-    app.run(host="0.0.0.0", port=5008, debug=False)
+    print("服务启动成功：http://127.0.0.1:5009")
+    app.run(host="0.0.0.0", port=5009, debug=False)
