@@ -147,6 +147,7 @@ def update_article_api(user_info):
         "data": {
             "article_id": article["id"],
             "new_title": article["title"],
+            "new_content": article["content"],
             "update_time": article["update_time"]
         }
     })
