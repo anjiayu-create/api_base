@@ -93,8 +93,8 @@ def create_article_api(user_info):
     })
 
 
-# 查询文章列表（无改动）
-@app.route("/api/article/list", methods=["GET"])
+# 查询当前用户已发布文章数量（无改动）
+@app.route("/api/article/count", methods=["GET"])
 @login_required
 def list_article_api(user_info):
     articles = get_articles(user_info["sub"])
@@ -102,7 +102,6 @@ def list_article_api(user_info):
         "code": 200,
         "msg": "查询成功",
         "data": {
-            "articles": articles,
             "count": len(articles)
         }
     })
