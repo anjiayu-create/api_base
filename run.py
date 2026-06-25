@@ -97,14 +97,19 @@ def create_article_api(user_info):
 @app.route("/api/article/count", methods=["GET"])
 @login_required
 def list_article_api(user_info):
-    articles = get_articles(user_info["sub"])
-    return jsonify({
-        "code": 200,
-        "msg": "查询成功",
-        "data": {
-            "count": len(articles)
-        }
-    })
+        user_id = str(user_info["sub"])
+        articles = get_articles(user_id)
+        return jsonify({
+            "code": 200,
+            "msg": "查询成功",
+            "data": {
+                "articles": {
+                    "code": 200,
+                    "msg": "查询成功",
+                    "count": len(articles)
+                }
+            }
+        })
 
 
 # 查询单篇文章（无改动）

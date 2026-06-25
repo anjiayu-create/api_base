@@ -4,6 +4,8 @@ import os
 import hashlib
 from config import DATA_DIR, USER_STORAGE_PATH, ARTICLE_STORAGE_PATH, INIT_USERS
 
+
+
 # 修复：原生pbkdf2_hex实现（匹配Python3.13标准库，保留原有逻辑）
 def pbkdf2_hex(data, salt, iterations=10000, dklen=64, digest=None):
     if digest is None:

@@ -1,27 +1,256 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>博客测试系统（Token&Session严格分离）</title>
     <style>
-        .container { width: 80%; margin: 20px auto; }
-        .form-group { margin: 15px 0; }
-        label { display: inline-block; width: 100px; }
-        input, textarea { width: 300px; padding: 5px; }
-        button { padding: 6px 15px; margin-right: 10px; cursor: pointer; }
-        #msg { color: red; margin: 10px 0; }
-        .success { color: green !important; }
-        .article-item { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 5px; }
-        .article-id { font-weight: bold; color: #0066cc; }
+        /* 全局样式重置与基础配置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Inter", "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            background-color: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+            padding: 2rem 0;
+        }
+
+        /* 容器样式 - 居中+最大宽度限制 */
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        /* 页面标题 */
+        .page-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: #64748b;
+            font-size: 0.95rem;
+        }
+
+        /* 卡片容器 - 登录/文章操作区域通用 */
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        /* 表单组样式 */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: inline-block;
+            width: 100px;
+            font-weight: 500;
+            color: #475569;
+            vertical-align: top;
+            margin-top: 0.5rem;
+        }
+
+        /* 输入框/文本域样式 */
+        input[type="text"],
+        input[type="password"],
+        input[type="number"],
+        textarea {
+            width: calc(100% - 110px);
+            padding: 0.625rem 0.875rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            outline: none;
+            background-color: #fafafa;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            background-color: #ffffff;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 0.625rem 1.25rem;
+            margin-right: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            background-color: #3b82f6;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            background-color: #2563eb;
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background-color: #64748b;
+        }
+
+        .btn-secondary:hover {
+            background-color: #475569;
+        }
+
+        /* 提示信息样式 */
+        .alert {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            border: 1px solid transparent;
+        }
+
+        .alert-success {
+            color: #065f46;
+            background-color: #d1fae5;
+            border-color: #a7f3d0;
+        }
+
+        .alert-error {
+            color: #991b1b;
+            background-color: #fee2e2;
+            border-color: #fecaca;
+        }
+
+        .alert-info {
+            color: #1e40af;
+            background-color: #dbeafe;
+            border-color: #bfdbfe;
+        }
+
+        /* 文章详情卡片 */
+        .article-detail {
+            border: 1px solid #e2e8f0;
+            padding: 1.5rem;
+            margin-top: 1.25rem;
+            border-radius: 12px;
+            background-color: #f8fafc;
+        }
+
+        .article-detail h3 {
+            color: #1e293b;
+            margin-bottom: 1rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .article-detail .detail-item {
+            margin-bottom: 0.75rem;
+            color: #475569;
+            font-size: 0.95rem;
+        }
+
+        .article-detail .detail-item strong {
+            color: #1e293b;
+            width: 80px;
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        /* 响应式适配 - 小屏幕优化 */
+        @media (max-width: 768px) {
+            .container {
+                width: 95%;
+            }
+
+            label {
+                width: 100%;
+                margin-bottom: 0.5rem;
+                margin-top: 0;
+            }
+
+            input[type="text"],
+            input[type="password"],
+            input[type="number"],
+            textarea {
+                width: 100%;
+            }
+
+            .btn {
+                width: 100%;
+                margin-bottom: 0.75rem;
+                margin-right: 0;
+            }
+
+            .page-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .card-title {
+                font-size: 1rem;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>博客测试系统（Token&Session严格分离）</h1>
+        <div class="page-header">
+            <h1>博客测试系统（Token&Session严格分离）</h1>
+            <p>加油！！</p>
+        </div>
 
         <!-- 登录区域 -->
-        <div id="login-area">
-            <h2>1. 登录</h2>
+        <div id="login-area" class="card">
+            <div class="card-title">1. 用户登录</div>
             <div class="form-group">
                 <label>用户名：</label>
                 <input type="text" id="username" placeholder="admin/test">
@@ -30,235 +259,362 @@
                 <label>密码：</label>
                 <input type="password" id="password" placeholder="Admin@123456/Test@123456">
             </div>
-            <button onclick="login()">登录</button>
-            <button onclick="logout()" disabled id="logout-btn">登出</button>
-            <div id="msg"></div>
+            <button class="btn" onclick="login()">登录</button>
+            <button class="btn btn-secondary" onclick="logout()" disabled id="logout-btn">登出</button>
+            <div id="msg" class="alert"></div>
         </div>
 
-        <!-- 文章操作区域（登录后显示） -->
+        <!-- 文章操作区域 -->
         <div id="article-area" style="display: none;">
-            <!-- 2. 发布文章 -->
-            <h2>2. 发布文章（返回article_id）</h2>
-            <div class="form-group">
-                <label>标题：</label>
-                <input type="text" id="art-title" placeholder="至少2个字符">
+            <!-- 发布文章 -->
+            <div class="card">
+                <div class="card-title">2. 发布文章</div>
+                <div class="form-group">
+                    <label>标题：</label>
+                    <input type="text" id="art-title" placeholder="2-50个字符">
+                </div>
+                <div class="form-group">
+                    <label>内容：</label>
+                    <textarea id="art-content" rows="5" placeholder="5-5000个字符"></textarea>
+                </div>
+                <button class="btn" onclick="createArticle()">发布文章</button>
+                <div id="create-result" class="alert"></div>
             </div>
-            <div class="form-group">
-                <label>内容：</label>
-                <textarea id="art-content" rows="5" placeholder="至少5个字符"></textarea>
-            </div>
-            <button onclick="createArticle()">发布文章</button>
-            <div id="create-result" class="form-group"></div>
 
-            <!-- 3. 查询文章列表 -->
-            <h2>3. 查询我的文章（含article_id）</h2>
-            <button onclick="listArticles()">查询文章</button>
-            <div id="article-list" class="form-group"></div>
+            <!-- 查询文章数量 -->
+            <div class="card">
+                <div class="card-title">3. 查询已发布文章数量</div>
+                <button class="btn" onclick="listArticles()">查询已发布文章数量</button>
+                <div id="article-list" class="alert alert-info" style="margin-top: 1rem;"></div>
+            </div>
 
-            <!-- 4. 修改文章 -->
-            <h2>4. 修改文章（需输入article_id）</h2>
-            <div class="form-group">
-                <label>article_id：</label>
-                <input type="number" id="update-id" placeholder="从查询结果复制ID">
+            <!-- 查询文章详情 -->
+            <div class="card">
+                <div class="card-title">4. 查询文章详情</div>
+                <div class="form-group">
+                    <label>article_id：</label>
+                    <input type="number" id="detail-id" placeholder="输入要查询的文章ID">
+                </div>
+                <button class="btn" onclick="getArticleDetail()">查询文章详情</button>
+                <div id="article-detail"></div>
             </div>
-            <div class="form-group">
-                <label>新标题：</label>
-                <input type="text" id="update-title" placeholder="留空则不修改">
-            </div>
-            <div class="form-group">
-                <label>新内容：</label>
-                <textarea id="update-content" rows="3" placeholder="留空则不修改"></textarea>
-            </div>
-            <button onclick="updateArticle()">修改文章</button>
-            <div id="update-result" class="form-group"></div>
 
-            <!-- 5. 删除文章 -->
-            <h2>5. 删除文章（需输入article_id）</h2>
-            <div class="form-group">
-                <label>article_id：</label>
-                <input type="number" id="delete-id" placeholder="从查询结果复制ID">
+            <!-- 修改文章 -->
+            <div class="card">
+                <div class="card-title">5. 修改文章</div>
+                <div class="form-group">
+                    <label>article_id：</label>
+                    <input type="number" id="update-id" placeholder="文章ID">
+                </div>
+                <div class="form-group">
+                    <label>新标题：</label>
+                    <input type="text" id="update-title" placeholder="留空不修改">
+                </div>
+                <div class="form-group">
+                    <label>新内容：</label>
+                    <textarea id="update-content" rows="3" placeholder="留空不修改"></textarea>
+                </div>
+                <button class="btn" onclick="updateArticle()">修改文章</button>
+                <div id="update-result" class="alert"></div>
             </div>
-            <button onclick="deleteArticle()">删除文章</button>
-            <div id="delete-result" class="form-group"></div>
+
+            <!-- 删除文章 -->
+            <div class="card">
+                <div class="card-title">6. 删除文章</div>
+                <div class="form-group">
+                    <label>article_id：</label>
+                    <input type="number" id="delete-id" placeholder="文章ID">
+                </div>
+                <button class="btn btn-secondary" onclick="deleteArticle()">删除文章</button>
+                <div id="delete-result" class="alert"></div>
+            </div>
         </div>
     </div>
 
     <script>
-        let token = "";  // Token仅存内存，用于请求头传递（身份认证）
-        let lastArticleId = "";  // 记录最新发布的article_id
+        let token = "";
+        let lastArticleId = "";
+        const API_BASE = window.location.origin;
 
-        // 1. 登录：仅获取Token（内存），Session ID由浏览器自动存Cookie
-        function login() {
-            const username = document.getElementById("username").value;
-            const password = document.getElementById("password").value;
+        // 字段规则
+        const RULE = {
+            titleMin: 2, titleMax: 50,
+            contentMin: 5, contentMax: 5000
+        };
 
-            fetch("/api/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",  // 仅用于携带Session Cookie（会话保持）
-                body: JSON.stringify({ username, password })
+        // 统一请求函数
+        function request(options) {
+            const url = new URL(options.url, API_BASE).href;
+            const headers = {
+                ...options.headers,
+                ...(options.needToken && token ? { "Authorization": `Bearer ${token}` } : {})
+            };
+
+            return fetch(url, {
+                method: options.method || "GET",
+                headers: headers,
+                credentials: "include",
+                body: options.body ? JSON.stringify(options.body) : undefined
             })
-            .then(res => res.json())
-            .then(data => {
+            .then(async res => {
+                const data = await res.json().catch(() => ({ code: 500, msg: "服务器响应格式错误" }));
+                if (res.status === 401) {
+                    handleAuthError(data.msg);
+                }
+                return { res, data };
+            })
+            .catch(err => {
+                console.error("请求失败:", err);
+                throw err;
+            });
+        }
+
+        // 统一提示函数
+        function showMsg(dom, text, type = "error") {
+            const el = typeof dom === "string" ? document.getElementById(dom) : dom;
+            el.innerText = text;
+            el.className = `alert alert-${type}`;
+        }
+
+        // 鉴权错误处理
+        function handleAuthError(msg) {
+            showMsg("msg", msg, "error");
+            token = "";
+            document.getElementById("article-area").style.display = "none";
+            document.getElementById("logout-btn").disabled = true;
+        }
+
+        // 1. 登录接口
+        function login() {
+            const username = document.getElementById("username").value.trim();
+            const password = document.getElementById("password").value.trim();
+            const msgDom = document.getElementById("msg");
+
+            if (!username || !password) {
+                showMsg(msgDom, "用户名/密码不能为空", "error");
+                return;
+            }
+
+            request({
+                url: "/api/login",
+                method: "POST",
+                needToken: false,
+                headers: { "Content-Type": "application/json" },
+                body: { username, password }
+            }).then(({ data }) => {
                 if (data.code === 200) {
-                    token = data.data.token;  // Token存入内存，不碰Cookie
-                    document.getElementById("msg").className = "success";
-                    document.getElementById("msg").innerText = "登录成功！Token仅存内存，Cookie仅含Session ID";
+                    token = data.data.token;
+                    showMsg(msgDom, "登录成功！", "success");
                     document.getElementById("article-area").style.display = "block";
                     document.getElementById("logout-btn").disabled = false;
                 } else {
-                    document.getElementById("msg").className = "";
-                    document.getElementById("msg").innerText = data.msg;
+                    showMsg(msgDom, data.msg, "error");
                 }
-            })
-            .catch(err => {
-                document.getElementById("msg").innerText = "登录失败：" + err;
+            }).catch(err => {
+                showMsg(msgDom, "网络异常：" + err.message, "error");
             });
         }
 
-        // 新增：登出（主动失效Session，Token由前端自行清空）
+        // 2. 登出接口
         function logout() {
             if (!token) {
-                document.getElementById("msg").innerText = "未登录，无需登出";
+                showMsg("msg", "未登录，无需登出", "info");
                 return;
             }
-            fetch("/api/logout", {
+
+            request({
+                url: "/api/logout",
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token  // Token用于身份认证
-                },
-                credentials: "include"  // 携带Session Cookie
-            })
-            .then(res => res.json())
-            .then(data => {
+                needToken: true,
+                headers: { "Content-Type": "application/json" },
+                body: {}
+            }).then(({ data }) => {
                 if (data.code === 200) {
-                    token = "";  // 前端清空Token
-                    document.getElementById("msg").className = "success";
-                    document.getElementById("msg").innerText = "登出成功！Session已失效，Token已清空";
+                    token = "";
+                    showMsg("msg", "登出成功", "success");
                     document.getElementById("article-area").style.display = "none";
                     document.getElementById("logout-btn").disabled = true;
-                    // 清空所有输入框
                     document.getElementById("update-id").value = "";
                     document.getElementById("delete-id").value = "";
+                    document.getElementById("detail-id").value = "";
                 } else {
-                    document.getElementById("msg").className = "";
-                    document.getElementById("msg").innerText = data.msg;
+                    showMsg("msg", data.msg, "error");
                 }
+            }).catch(err => {
+                showMsg("msg", "网络异常：" + err.message, "error");
             });
         }
 
-        // 2. 发布文章：Token（请求头）+ Session（Cookie）双重传递
+        // 3. 发布文章接口
         function createArticle() {
-            const title = document.getElementById("art-title").value;
-            const content = document.getElementById("art-content").value;
+            const title = document.getElementById("art-title").value.trim();
+            const content = document.getElementById("art-content").value.trim();
+            const dom = document.getElementById("create-result");
 
-            fetch("/api/article/create", {
+            if (title.length < RULE.titleMin || title.length > RULE.titleMax) {
+                showMsg(dom, `标题需为${RULE.titleMin}-${RULE.titleMax}个字符`, "error");
+                return;
+            }
+            if (content.length < RULE.contentMin || content.length > RULE.contentMax) {
+                showMsg(dom, `内容需为${RULE.contentMin}-${RULE.contentMax}个字符`, "error");
+                return;
+            }
+
+            request({
+                url: "/api/article/create",
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token  // Token仅此处传递
-                },
-                credentials: "include",  // Session Cookie自动携带
-                body: JSON.stringify({ title, content })
-            })
-            .then(res => res.json())
-            .then(data => {
+                needToken: true,
+                headers: { "Content-Type": "application/json" },
+                body: { title, content }
+            }).then(({ data }) => {
                 if (data.code === 200) {
                     lastArticleId = data.data.article_id;
-                    document.getElementById("create-result").className = "success";
-                    document.getElementById("create-result").innerText =
-                        `发布成功！article_id=${lastArticleId}，已填充到修改/删除框`;
+                    showMsg(dom, `发布成功！article_id=${lastArticleId}`, "success");
                     document.getElementById("update-id").value = lastArticleId;
                     document.getElementById("delete-id").value = lastArticleId;
                     document.getElementById("art-title").value = "";
                     document.getElementById("art-content").value = "";
                 } else {
-                    document.getElementById("create-result").className = "";
-                    document.getElementById("create-result").innerText = data.msg;
+                    showMsg(dom, data.msg, "error");
                 }
+            }).catch(err => {
+                showMsg(dom, "网络异常：" + err.message, "error");
             });
         }
 
-        // 3. 查询文章列表：同上
+        // 4. 查询文章数量接口（适配后端嵌套结构）
         function listArticles() {
-            fetch("/api/article/list", {
+            const dom = document.getElementById("article-list");
+            showMsg(dom, "正在查询...", "info");
+
+            request({
+                url: "/api/article/count",
                 method: "GET",
-                headers: { "Authorization": "Bearer " + token },
-                credentials: "include"
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.code === 200) {
-                    let html = `<div>共${data.data.count}篇文章：</div>`;
-                    data.data.articles.forEach(art => {
-                        html += `<div class="article-item">
-                            article_id：<span class="article-id">${art.id}</span><br>
-                            标题：${art.title}<br>
-                            创建时间：${art.create_time}
-                        </div>`;
-                    });
-                    document.getElementById("article-list").innerHTML = html;
+                needToken: true
+            }).then(({ data }) => {
+                // 适配后端返回的嵌套结构：data.data.articles.count
+                if (data.code === 200 && data.data?.articles) {
+                    const articlesData = data.data.articles;
+                    if (articlesData.code === 200) {
+                        showMsg(dom, `共 ${articlesData.count} 篇已发布文章`, "success");
+                    } else {
+                        showMsg(dom, `查询失败：${articlesData.msg || "文章数量数据异常"}`, "error");
+                    }
                 } else {
-                    document.getElementById("article-list").innerText = data.msg;
+                    showMsg(dom, `查询失败：${data.msg || "返回结构不符合预期"}`, "error");
                 }
+            }).catch(err => {
+                showMsg(dom, "网络异常：" + err.message, "error");
             });
         }
 
-        // 4. 修改文章：同上
-        function updateArticle() {
-            const article_id = document.getElementById("update-id").value;
-            const title = document.getElementById("update-title").value;
-            const content = document.getElementById("update-content").value;
+        // 5. 查询文章详情接口
+        function getArticleDetail() {
+            const articleId = document.getElementById("detail-id").value.trim();
+            const dom = document.getElementById("article-detail");
 
-            fetch("/api/article/update", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token
-                },
-                credentials: "include",
-                body: JSON.stringify({ article_id, title, content })
-            })
-            .then(res => res.json())
-            .then(data => {
+            if (!articleId || isNaN(articleId) || parseInt(articleId) <= 0) {
+                showMsg(dom, "请输入有效文章ID（正整数）", "error");
+                return;
+            }
+
+            showMsg(dom, "正在查询文章详情...", "info");
+
+            request({
+                url: `/api/article/${articleId}`,
+                method: "GET",
+                needToken: true
+            }).then(({ data }) => {
                 if (data.code === 200) {
-                    document.getElementById("update-result").className = "success";
-                    document.getElementById("update-result").innerText =
-                        `修改成功！article_id=${data.data.article_id}`;
+                    const art = data.data;
+                    const html = `
+                        <div class="article-detail">
+                            <h3>文章详情（ID：${art.id}）</h3>
+                            <div class="detail-item"><strong>标题：</strong>${art.title}</div>
+                            <div class="detail-item"><strong>内容：</strong>${art.content}</div>
+                            <div class="detail-item"><strong>作者ID：</strong>${art.author_id}</div>
+                            <div class="detail-item"><strong>作者名：</strong>${art.author_name}</div>
+                            <div class="detail-item"><strong>创建时间：</strong>${art.create_time}</div>
+                            <div class="detail-item"><strong>更新时间：</strong>${art.update_time}</div>
+                        </div>
+                    `;
+                    dom.innerHTML = html;
+                } else {
+                    showMsg(dom, data.msg, "error");
+                }
+            }).catch(err => {
+                showMsg(dom, "网络异常：" + err.message, "error");
+            });
+        }
+
+        // 6. 修改文章接口
+        function updateArticle() {
+            const article_id = document.getElementById("update-id").value.trim();
+            const title = document.getElementById("update-title").value.trim();
+            const content = document.getElementById("update-content").value.trim();
+            const dom = document.getElementById("update-result");
+
+            if (!article_id || isNaN(article_id) || parseInt(article_id) <= 0) {
+                showMsg(dom, "请输入有效文章ID（正整数）", "error");
+                return;
+            }
+            if (!title && !content) {
+                showMsg(dom, "至少修改标题或内容其中一项", "error");
+                return;
+            }
+            if (title && (title.length < RULE.titleMin || title.length > RULE.titleMax)) {
+                showMsg(dom, `标题需为${RULE.titleMin}-${RULE.titleMax}个字符`, "error");
+                return;
+            }
+            if (content && (content.length < RULE.contentMin || content.length > RULE.contentMax)) {
+                showMsg(dom, `内容需为${RULE.contentMin}-${RULE.contentMax}个字符`, "error");
+                return;
+            }
+
+            request({
+                url: "/api/article/update",
+                method: "POST",
+                needToken: true,
+                headers: { "Content-Type": "application/json" },
+                body: { article_id, title, content }
+            }).then(({ data }) => {
+                if (data.code === 200) {
+                    showMsg(dom, `修改成功！article_id=${data.data.article_id}`, "success");
                     listArticles();
                 } else {
-                    document.getElementById("update-result").className = "";
-                    document.getElementById("update-result").innerText = data.msg;
+                    showMsg(dom, data.msg, "error");
                 }
+            }).catch(err => {
+                showMsg(dom, "网络异常：" + err.message, "error");
             });
         }
 
-        // 5. 删除文章：同上
+        // 7. 删除文章接口
         function deleteArticle() {
-            const article_id = document.getElementById("delete-id").value;
+            const article_id = document.getElementById("delete-id").value.trim();
+            const dom = document.getElementById("delete-result");
 
-            fetch("/api/article/delete", {
+            if (!article_id || isNaN(article_id) || parseInt(article_id) <= 0) {
+                showMsg(dom, "请输入有效文章ID（正整数）", "error");
+                return;
+            }
+
+            request({
+                url: "/api/article/delete",
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token
-                },
-                credentials: "include",
-                body: JSON.stringify({ article_id })
-            })
-            .then(res => res.json())
-            .then(data => {
+                needToken: true,
+                headers: { "Content-Type": "application/json" },
+                body: { article_id }
+            }).then(({ data }) => {
                 if (data.code === 200) {
-                    document.getElementById("delete-result").className = "success";
-                    document.getElementById("delete-result").innerText =
-                        `删除成功！article_id=${data.data.article_id}`;
+                    showMsg(dom, `删除成功！article_id=${data.data.article_id}`, "success");
                     listArticles();
                     document.getElementById("delete-id").value = "";
                 } else {
-                    document.getElementById("delete-result").className = "";
-                    document.getElementById("delete-result").innerText = data.msg;
+                    showMsg(dom, data.msg, "error");
                 }
+            }).catch(err => {
+                showMsg(dom, "网络异常：" + err.message, "error");
             });
         }
     </script>

@@ -24,7 +24,7 @@ def create_article(user_id, username, title, content):
     validate_err = validate_article_fields(title, content)
     if validate_err:
         return None, validate_err
-
+    user_id = str(user_id)
     # 生成文章数据（含唯一article_id）
     article_id = get_next_article_id()
     article = {
@@ -46,6 +46,7 @@ def create_article(user_id, username, title, content):
 
 # 2. 查询文章（返回含article_id的完整列表，供后续修改/删除）
 def get_articles(user_id):
+    user_id = str(user_id)
     articles = article_storage.read()
     # 仅返回当前用户发布的文章（权限控制）
     user_articles = [art for art in articles if art["author_id"] == user_id]
@@ -58,7 +59,7 @@ def get_article_by_id(article_id, user_id):
         article_id = int(article_id)
     except ValueError:
         return None, "article_id必须为数字"
-
+    user_id = str(user_id)
     articles = article_storage.read()
     for art in articles:
         # 校验ID+用户权限（仅能查自己的文章）
@@ -69,6 +70,7 @@ def get_article_by_id(article_id, user_id):
 
 # 4. 修改文章（依赖article_id，接口串联）
 def update_article(article_id, user_id, title=None, content=None):
+    user_id = str(user_id)
     # 校验ID有效性
     article, err = get_article_by_id(article_id, user_id)
     if err:
@@ -101,6 +103,7 @@ def update_article(article_id, user_id, title=None, content=None):
 
 # 5. 删除文章（依赖article_id，接口串联）
 def delete_article(article_id, user_id):
+    user_id = str(user_id)
     # 校验ID有效性
     article, err = get_article_by_id(article_id, user_id)
     if err:
