@@ -185,5 +185,5 @@ if __name__ == "__main__":
 
     init_users()
     # 启动服务
-    print("服务启动成功：http://127.0.0.1:5009")
+    print("服务启动成功")
     app.run(host="0.0.0.0", port=5009, debug=False)
