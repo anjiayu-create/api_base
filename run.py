@@ -183,6 +183,6 @@ if __name__ == "__main__":
     # 初始化用户（仅首次运行）
     from storage import init_users
     init_users()
-    # 启动服务
+    # 启动服务了
     print("服务启动成功")
     app.run(host="0.0.0.0", port=5009, debug=False)
