@@ -182,7 +182,6 @@ def delete_article_api(user_info):
 if __name__ == "__main__":
     # 初始化用户（仅首次运行）
     from storage import init_users
-
     init_users()
     # 启动服务
     print("服务启动成功")
